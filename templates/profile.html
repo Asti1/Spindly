@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Profile — Spendly{% endblock %}
+
+{% block content %}
+<div class="profile-page">
+
+    <!-- ── Header ──────────────────────────────────────────────── -->
+    <div class="profile-header">
+        <div class="profile-header-inner">
+            <div>
+                <h1 class="profile-greeting">Good to see you, {{ user.name }}.</h1>
+                <p class="profile-since">Member since {{ user.created_at[:10] }}</p>
+            </div>
+            <a href="{{ url_for('add_expense') }}" class="btn-primary">+ Add Expense</a>
+        </div>
+    </div>
+
+    <!-- ── Stats row ────────────────────────────────────────────── -->
+    <div class="profile-section">
+        <div class="stats-row">
+            <div class="stat-card">
+                <span class="stat-label">Total Spent</span>
+                <span class="stat-value">₹{{ "%.2f"|format(total) }}</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Expenses</span>
+                <span class="stat-value">{{ expense_count }}</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Top Category</span>
+                <span class="stat-value stat-value--md">{{ top_category }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Category breakdown ───────────────────────────────────── -->
+    {% if category_breakdown %}
+    <div class="profile-section">
+        <div class="breakdown-card">
+            <h2 class="section-title">Spending by Category</h2>
+            <div class="mock-bars">
+                {% for cat, amt in category_breakdown %}
+                <div class="mock-bar-row">
+                    <span class="mock-cat">{{ cat }}</span>
+                    <div class="mock-bar-track">
+                        <div class="mock-bar" style="width: {{ (amt / max_cat_amount * 100)|int }}%"></div>
+                    </div>
+                    <span class="mock-amt">₹{{ "%.2f"|format(amt) }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ── Recent expenses ──────────────────────────────────────── -->
+    <div class="profile-section">
+        <div class="breakdown-card">
+            <h2 class="section-title">Recent Expenses</h2>
+            {% if recent %}
+            <div class="table-wrap">
+                <table class="expenses-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Category</th>
+                            <th>Description</th>
+                            <th class="col-amount">Amount</th>
+                            <th class="col-actions"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for e in recent %}
+                        <tr>
+                            <td class="col-date">{{ e.date }}</td>
+                            <td><span class="cat-badge">{{ e.category }}</span></td>
+                            <td class="col-desc">{{ e.description or "—" }}</td>
+                            <td class="col-amount">₹{{ "%.2f"|format(e.amount) }}</td>
+                            <td class="col-actions">
+                                <a href="{{ url_for('edit_expense', id=e.id) }}" class="action-link">Edit</a>
+                                <a href="{{ url_for('delete_expense', id=e.id) }}" class="action-link action-link--danger">Delete</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="empty-state">No expenses yet. <a href="{{ url_for('add_expense') }}">Add your first one.</a></p>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}
