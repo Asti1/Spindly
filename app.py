@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 from flask import Flask, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash
 
@@ -84,7 +86,43 @@ def logout():
 
 @app.route("/profile")
 def profile():
-    return "Profile page — coming in Step 4"
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+
+    user_id = session["user_id"]
+    conn = get_db()
+    try:
+        user = conn.execute(
+            "SELECT id, name, email, created_at FROM users WHERE id = ?", (user_id,)
+        ).fetchone()
+        expenses = conn.execute(
+            "SELECT id, amount, category, date, description "
+            "FROM expenses WHERE user_id = ? ORDER BY date DESC",
+            (user_id,),
+        ).fetchall()
+    finally:
+        conn.close()
+
+    total = sum(e["amount"] for e in expenses)
+    recent = expenses[:10]
+
+    cat_totals = defaultdict(float)
+    for e in expenses:
+        cat_totals[e["category"]] += e["amount"]
+    category_breakdown = sorted(cat_totals.items(), key=lambda x: x[1], reverse=True)
+    top_category = category_breakdown[0][0] if category_breakdown else "—"
+    max_cat_amount = category_breakdown[0][1] if category_breakdown else 1
+
+    return render_template(
+        "profile.html",
+        user=user,
+        total=total,
+        expense_count=len(expenses),
+        top_category=top_category,
+        category_breakdown=category_breakdown,
+        max_cat_amount=max_cat_amount,
+        recent=recent,
+    )
 
 
 @app.route("/expenses/add")
