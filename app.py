@@ -1,9 +1,8 @@
-from collections import defaultdict
-
 from flask import Flask, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash
 
-from database.db import get_db, init_db, seed_db
+from database.db import init_db, seed_db
+from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown
 from database.users import create_user, get_user_by_email
 
 app = Flask(__name__)
@@ -90,38 +89,19 @@ def profile():
         return redirect(url_for("login"))
 
     user_id = session["user_id"]
-    conn = get_db()
-    try:
-        user = conn.execute(
-            "SELECT id, name, email, created_at FROM users WHERE id = ?", (user_id,)
-        ).fetchone()
-        expenses = conn.execute(
-            "SELECT id, amount, category, date, description "
-            "FROM expenses WHERE user_id = ? ORDER BY date DESC",
-            (user_id,),
-        ).fetchall()
-    finally:
-        conn.close()
-
-    total = sum(e["amount"] for e in expenses)
-    recent = expenses[:10]
-
-    cat_totals = defaultdict(float)
-    for e in expenses:
-        cat_totals[e["category"]] += e["amount"]
-    category_breakdown = sorted(cat_totals.items(), key=lambda x: x[1], reverse=True)
-    top_category = category_breakdown[0][0] if category_breakdown else "—"
-    max_cat_amount = category_breakdown[0][1] if category_breakdown else 1
+    user = get_user_by_id(user_id)
+    stats = get_summary_stats(user_id)
+    recent = get_recent_transactions(user_id)
+    category_breakdown = get_category_breakdown(user_id)
 
     return render_template(
         "profile.html",
         user=user,
-        total=total,
-        expense_count=len(expenses),
-        top_category=top_category,
-        category_breakdown=category_breakdown,
-        max_cat_amount=max_cat_amount,
+        total=stats["total_spent"],
+        expense_count=stats["transaction_count"],
+        top_category=stats["top_category"],
         recent=recent,
+        category_breakdown=category_breakdown,
     )
 
 
