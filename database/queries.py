@@ -2,6 +2,17 @@ from datetime import datetime
 from database.db import get_db
 
 
+def _date_filters(from_date, to_date):
+    clauses, params = [], []
+    if from_date:
+        clauses.append("date >= ?")
+        params.append(from_date)
+    if to_date:
+        clauses.append("date <= ?")
+        params.append(to_date)
+    return clauses, params
+
+
 def get_user_by_id(user_id):
     conn = get_db()
     try:
@@ -21,20 +32,26 @@ def get_user_by_id(user_id):
         conn.close()
 
 
-def get_summary_stats(user_id):
+def get_summary_stats(user_id, from_date=None, to_date=None):
     conn = get_db()
     try:
+        extra_clauses, extra_params = _date_filters(from_date, to_date)
+        where = "WHERE user_id = ?"
+        if extra_clauses:
+            where += " AND " + " AND ".join(extra_clauses)
+        params = (user_id, *extra_params)
+
         row = conn.execute(
-            "SELECT SUM(amount) AS total, COUNT(*) AS cnt FROM expenses WHERE user_id = ?",
-            (user_id,)
+            f"SELECT SUM(amount) AS total, COUNT(*) AS cnt FROM expenses {where}",
+            params
         ).fetchone()
         total = row["total"] or 0
         count = row["cnt"] or 0
         if count == 0:
             return {"total_spent": 0, "transaction_count": 0, "top_category": "—"}
         top_row = conn.execute(
-            "SELECT category FROM expenses WHERE user_id = ? GROUP BY category ORDER BY SUM(amount) DESC LIMIT 1",
-            (user_id,)
+            f"SELECT category FROM expenses {where} GROUP BY category ORDER BY SUM(amount) DESC LIMIT 1",
+            params
         ).fetchone()
         top_category = top_row["category"] if top_row else "—"
         return {
@@ -46,26 +63,38 @@ def get_summary_stats(user_id):
         conn.close()
 
 
-def get_recent_transactions(user_id, limit=10):
+def get_recent_transactions(user_id, limit=10, from_date=None, to_date=None):
     conn = get_db()
     try:
+        extra_clauses, extra_params = _date_filters(from_date, to_date)
+        where = "WHERE user_id = ?"
+        if extra_clauses:
+            where += " AND " + " AND ".join(extra_clauses)
+        params = (user_id, *extra_params, limit)
+
         rows = conn.execute(
-            "SELECT id, date, description, category, amount FROM expenses"
-            " WHERE user_id = ? ORDER BY date DESC LIMIT ?",
-            (user_id, limit)
+            f"SELECT id, date, description, category, amount FROM expenses"
+            f" {where} ORDER BY date DESC LIMIT ?",
+            params
         ).fetchall()
         return [dict(row) for row in rows]
     finally:
         conn.close()
 
 
-def get_category_breakdown(user_id):
+def get_category_breakdown(user_id, from_date=None, to_date=None):
     conn = get_db()
     try:
+        extra_clauses, extra_params = _date_filters(from_date, to_date)
+        where = "WHERE user_id = ?"
+        if extra_clauses:
+            where += " AND " + " AND ".join(extra_clauses)
+        params = (user_id, *extra_params)
+
         rows = conn.execute(
-            "SELECT category AS name, SUM(amount) AS amount FROM expenses"
-            " WHERE user_id = ? GROUP BY category ORDER BY amount DESC",
-            (user_id,)
+            f"SELECT category AS name, SUM(amount) AS amount FROM expenses"
+            f" {where} GROUP BY category ORDER BY amount DESC",
+            params
         ).fetchall()
         if not rows:
             return []
@@ -77,7 +106,6 @@ def get_category_breakdown(user_id):
                 "amount": float(row["amount"]),
                 "pct": round(row["amount"] / total * 100),
             })
-        # Adjust the largest category so all pct values sum exactly to 100
         pct_sum = sum(item["pct"] for item in result)
         result[0]["pct"] += 100 - pct_sum
         return result
