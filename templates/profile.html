@@ -15,6 +15,23 @@
         </div>
     </div>
 
+    <!-- ── Date filter ────────────────────────────────────────────── -->
+    <div class="profile-section">
+        <form method="get" action="{{ url_for('profile') }}" class="filter-form">
+            <label class="filter-label">From
+                <input type="date" name="from" value="{{ from_date or '' }}" class="filter-input">
+            </label>
+            <label class="filter-label">To
+                <input type="date" name="to" value="{{ to_date or '' }}" class="filter-input">
+            </label>
+            <button type="submit" class="btn-primary btn-sm">Apply</button>
+            <a href="{{ url_for('profile') }}" class="filter-clear">Clear</a>
+        </form>
+        {% if from_date or to_date %}
+        <p class="filter-active">Showing: {{ from_date or '…' }} → {{ to_date or '…' }}</p>
+        {% endif %}
+    </div>
+
     <!-- ── Stats row ────────────────────────────────────────────── -->
     <div class="profile-section">
         <div class="stats-row">

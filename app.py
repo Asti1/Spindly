@@ -1,3 +1,4 @@
+import re
 from flask import Flask, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash
 
@@ -89,10 +90,21 @@ def profile():
         return redirect(url_for("login"))
 
     user_id = session["user_id"]
+
+    _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+    from_date = request.args.get("from", "").strip() or None
+    to_date   = request.args.get("to",   "").strip() or None
+    if from_date and not _DATE_RE.match(from_date):
+        from_date = None
+    if to_date and not _DATE_RE.match(to_date):
+        to_date = None
+    if from_date and to_date and from_date > to_date:
+        from_date = to_date = None
+
     user = get_user_by_id(user_id)
-    stats = get_summary_stats(user_id)
-    recent = get_recent_transactions(user_id)
-    category_breakdown = get_category_breakdown(user_id)
+    stats = get_summary_stats(user_id, from_date=from_date, to_date=to_date)
+    recent = get_recent_transactions(user_id, from_date=from_date, to_date=to_date)
+    category_breakdown = get_category_breakdown(user_id, from_date=from_date, to_date=to_date)
 
     return render_template(
         "profile.html",
@@ -102,6 +114,8 @@ def profile():
         top_category=stats["top_category"],
         recent=recent,
         category_breakdown=category_breakdown,
+        from_date=from_date,
+        to_date=to_date,
     )
 
 
